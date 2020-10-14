@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
+namespace AddFactoryExtension
 {
     [Serializable]
     internal class FactoryMethodNotInterfaceException : Exception

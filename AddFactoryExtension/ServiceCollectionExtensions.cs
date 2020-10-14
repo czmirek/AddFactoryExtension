@@ -1,6 +1,6 @@
 ﻿namespace Microsoft.Extensions.DependencyInjection
 {
-    using Microsoft.Extensions.DependencyInjection.AddFactoryExtension;
+    using AddFactoryExtension;
     using System;
     using System.Reflection;
 

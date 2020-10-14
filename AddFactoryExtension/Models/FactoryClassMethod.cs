@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Reflection;
 
-namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
+namespace AddFactoryExtension
 {
     internal class FactoryClassMethod
     {

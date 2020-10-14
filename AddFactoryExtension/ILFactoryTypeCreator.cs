@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Reflection.Emit;
-using System.Threading;
-
-
-namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
+﻿namespace AddFactoryExtension
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Reflection;
+    using System.Reflection.Emit;
+    using System.Threading;
+
     /// <summary>
     /// IL type creator of the factory implementation type
     /// </summary>
@@ -68,30 +67,31 @@ namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
 
             facBuilder.AddInterfaceImplementation(typeof(TFactory));
 
+            var fieldBuilders = new Dictionary<string, FieldBuilder>();
+            foreach (var item in builder.PrivateReadonlyFields)
+            {
+                FieldBuilder fieldBuilder = facBuilder.DefineField(item.Name, item.Type, FieldAttributes.Private | FieldAttributes.InitOnly);
+                fieldBuilders.Add(item.Name, fieldBuilder);
+            }
+
             // ctor construction
             var ctorParams = builder.PrivateReadonlyFields.Select(t => t.Type).ToArray();
-            ConstructorBuilder facCtorBuilder = facBuilder.DefineConstructor(MethodAttributes.Public
+            ConstructorBuilder facCtorBuilder = facBuilder.DefineConstructor(
+                MethodAttributes.Public
                 | MethodAttributes.HideBySig
                 | MethodAttributes.SpecialName
                 | MethodAttributes.RTSpecialName, CallingConventions.Standard, ctorParams);
 
-            var ctorIL = facCtorBuilder.GetILGenerator();
+            ILGenerator ctorIL = facCtorBuilder.GetILGenerator();
             ctorIL.Emit(OpCodes.Ldarg_0);
             ctorIL.Emit(OpCodes.Call, objCtor);
-            ctorIL.Emit(OpCodes.Nop);
+            //ctorIL.Emit(OpCodes.Nop);
 
             // generate IL code for assigning the fields with types (parsed from the resolved type constructors) 
             // resolved by the IoC container
-            Dictionary<string, FieldBuilder> fieldBuilders = new Dictionary<string, FieldBuilder>();
+            
             for (int i = 0; i < builder.PrivateReadonlyFields.Count; i++)
             {
-                FieldBuilder fieldBuilder = facBuilder.DefineField
-                (
-                    builder.PrivateReadonlyFields[i].Name,
-                    builder.PrivateReadonlyFields[i].Type,
-                    FieldAttributes.Public | FieldAttributes.InitOnly
-                );
-
                 ctorIL.Emit(OpCodes.Ldarg_0);
 
                 if (i == 0)
@@ -103,9 +103,7 @@ namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
                 else
                     ctorIL.Emit(OpCodes.Ldarg_S, builder.PrivateReadonlyFields[i].Name);
 
-                ctorIL.Emit(OpCodes.Stfld, fieldBuilder);
-
-                fieldBuilders.Add(builder.PrivateReadonlyFields[i].Name, fieldBuilder);
+                ctorIL.Emit(OpCodes.Stfld, fieldBuilders[builder.PrivateReadonlyFields[i].Name]);
             }
 
             ctorIL.Emit(OpCodes.Ret);
@@ -131,9 +129,17 @@ namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
                 // assign the method parameters
                 // into the constructed type ctor
                 var methodIL = methodBuilder.GetILGenerator();
-                methodIL.Emit(OpCodes.Nop);
+                //methodIL.Emit(OpCodes.Nop);
                 for (int i = 0; i < facMethod.Parameters.Count; i++)
                 {
+                    // different op codes if the parameter is derived from field
+                    if (facMethod.Parameters[i].IsFromField)
+                    {
+                        methodIL.Emit(OpCodes.Ldarg_0);
+                        methodIL.Emit(OpCodes.Ldfld, fieldBuilders[facMethod.Parameters[i].MatchingField]);
+                        continue;
+                    }
+
                     if (i == 0)
                         methodIL.Emit(OpCodes.Ldarg_1);
                     else if (i == 1)
@@ -142,13 +148,6 @@ namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
                         methodIL.Emit(OpCodes.Ldarg_3);
                     else
                         methodIL.Emit(OpCodes.Ldarg_S, facMethod.Parameters[i].MatchingField);
-
-                    // different op codes if the parameter is derived from field
-                    if (facMethod.Parameters[i].IsFromField)
-                    {
-                        methodIL.Emit(OpCodes.Ldarg_0);
-                        methodIL.Emit(OpCodes.Ldfld, fieldBuilders[facMethod.Parameters[i].MatchingField]);
-                    }
                 }
 
                 methodIL.Emit(OpCodes.Newobj, facMethod.MatchingCtor);

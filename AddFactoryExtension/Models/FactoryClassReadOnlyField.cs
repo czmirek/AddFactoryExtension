@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
+namespace AddFactoryExtension
 {
     internal class FactoryClassReadOnlyField
     {

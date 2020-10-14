@@ -14,6 +14,13 @@ namespace AddFactoryExtension.Tests
             public Bar() { }
         }
         public interface IBarFactory { IBar Factory(); }
+        public class TestBarFactory : IBarFactory
+        {
+            public IBar Factory()
+            {
+                return new Bar();
+            }
+        }
 
         [Fact]
         public void Test_Factory_Without_Ctor()

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.AddFactoryExtension;
 using Xunit;
 
 /// <summary>
@@ -136,6 +135,27 @@ namespace AddFactoryExtension.Tests
         {
             IBar Factory(int num, string str);
         }
+
+        [Fact]
+        public void Verify_AddFactory_Fails()
+        {
+            Assert.Throws<ConflictingCtorsFoundException>(() =>
+            {
+                ServiceCollection sc = new ServiceCollection();
+                sc.AddTransient<IBar, Bar>();
+                sc.AddFactory<IBarFactory>();
+            });
+        }
+    }
+
+    public class ConflictingCtorsFoundExceptionTest8
+    {
+        public interface ISomeOtherService { }
+        public class SomeOtherService : ISomeOtherService { }
+        public interface IBar { }
+        public class Bar : IBar { public Bar(int num) { } }
+        public class Bar2 : IBar { public Bar2(int num, ISomeOtherService someOtherService) { } }
+        public interface IBarFactory { IBar Factory(int num); }
 
         [Fact]
         public void Verify_AddFactory_Fails()

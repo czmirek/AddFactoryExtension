@@ -1,18 +1,17 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.AddFactoryExtension;
 using Xunit;
 
 namespace AddFactoryExtension.Tests
 {
-    public class NoImplementingClassFoundExceptionTest
+    public class FactoryMethodNotInterfaceExceptionTest
     {
-        public interface IBar { }
-        public interface IBarFactory { IBar Factory(); }
+        public class NotInterface { }
+        public interface IBarFactory { NotInterface Factory(); }
 
         [Fact]
         public void Verify_NotInterface_Throws()
         {
-            Assert.Throws<NoImplementingClassFoundException>(() =>
+            Assert.Throws<FactoryMethodNotInterfaceException>(() =>
             {
                 ServiceCollection sc = new ServiceCollection();
                 sc.AddFactory<IBarFactory>();

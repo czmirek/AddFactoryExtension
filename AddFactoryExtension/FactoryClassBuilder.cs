@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
+namespace AddFactoryExtension
 {
     /// <summary>
     /// Factory type interface structure for type validation and preparation for the IL type build
@@ -97,14 +97,14 @@ namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
                 for (int i = 0; i < ctorParams.Length; i++)
                 {
                     bool fromField = i > factoryParams.Length - 1;
-                    string methodParamName = ctorParams[i].ParameterType.Name;
-                    string fieldName = $"implFieldOfType_{ctorParams[i].ParameterType.Name}";
+                    string fieldName = $"field_{i}_{ctorParams[i].ParameterType.Name}";
+                    string methodParamName = $"param_{i}_{ctorParams[i].ParameterType.Name}";
 
                     if (fromField)
                     {
                         facClsBuilder.PrivateReadonlyFields.Add(new FactoryClassReadOnlyField()
                         {
-                            Name = $"implFieldOfType_{ctorParams[i].ParameterType.Name}",
+                            Name = fieldName,
                             Type = ctorParams[i].ParameterType
                         });
                     }

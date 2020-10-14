@@ -1,10 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-
-namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
+﻿namespace AddFactoryExtension
 {
+    using Microsoft.Extensions.DependencyInjection;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Reflection;
+
     /// <summary>
     /// Activates the dynamically created factory type
     /// </summary>
