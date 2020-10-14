@@ -2,15 +2,15 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <AssemblyVersion>0.1.0.0</AssemblyVersion>
-    <FileVersion>0.1.0.0</FileVersion>
+    <AssemblyVersion>0.1.1.0</AssemblyVersion>
+    <FileVersion>0.1.1.0</FileVersion>
     <Authors>Miroslav Bartl</Authors>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Description>Allows dynamical creation of factory classes inside IServiceCollection, similar to Ninject's ToFactory functionallity.</Description>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/czmirek/IServiceCollection.AddFactory-extension</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/czmirek/IServiceCollection.AddFactory-extension</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/czmirek/AddFactoryExtension</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/czmirek/AddFactoryExtension</RepositoryUrl>
     <PackageTags>IoC, DI, Factory</PackageTags>
   </PropertyGroup>
 
