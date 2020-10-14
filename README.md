@@ -2,7 +2,7 @@
 This project simulates the Ninject's [`ToFactory`](https://github.com/ninject/Ninject.Extensions.Factory/wiki/Factory-interface) functionality
 but on `IServiceCollection`.
 
-[![NuGet](http://img.shields.io/nuget/v/AddFactoryExtension.svg)](https://www.nuget.org/packages/AutoMapper/)
+[![NuGet](http://img.shields.io/nuget/v/AddFactoryExtension.svg)](https://www.nuget.org/packages/AddFactoryExtension/)
 
 ## Example
 
@@ -69,8 +69,6 @@ which assemblies to scan.
 ```csharp
 sc.AddFactory<IBarFactory>(params Assembly[] assemblies)
 ```
-
-
 
 ## Automatic injection of other services
 
