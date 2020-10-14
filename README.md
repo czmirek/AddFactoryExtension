@@ -1,4 +1,4 @@
-# IServiceCollection.AddFactory extension method
+# AddFactory extension method
 This project simulates the Ninject's [`ToFactory`](https://github.com/ninject/Ninject.Extensions.Factory/wiki/Factory-interface) functionality
 but with `IServiceCollection`.
 
