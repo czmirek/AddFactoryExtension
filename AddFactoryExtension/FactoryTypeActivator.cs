@@ -1,15 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
 {
+    /// <summary>
+    /// Activates the dynamically created factory type
+    /// </summary>
     internal class FactoryTypeActivator
     {
         internal static object Activate(IServiceProvider sp, Type facType)
         {
-            var ctor = facType.GetConstructors().FirstOrDefault();
-            var ctorParams = ctor.GetParameters();
+            ConstructorInfo ctor = facType.GetConstructors().FirstOrDefault();
+            ParameterInfo[] ctorParams = ctor.GetParameters();
             var ctorParamInstances = new List<object>();
             
             foreach (var ctorParam in ctorParams)
@@ -18,7 +22,7 @@ namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
                 ctorParamInstances.Add(instance);
             }
 
-            return Activator.CreateInstance(facType, ctorParamInstances);
+            return ctor.Invoke(ctorParamInstances.ToArray());
         }
     }
 }

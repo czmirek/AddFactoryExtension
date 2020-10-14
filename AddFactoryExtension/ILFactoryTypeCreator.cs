@@ -5,31 +5,83 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
 
+
 namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
 {
-    internal static class FactoryILBuilder
+    /// <summary>
+    /// IL type creator of the factory implementation type
+    /// </summary>
+    /// <remarks>
+    /// Example implementation type should look like this:
+    /// 
+    /// public class DynamicFactoryForIMyFactory : IMyFactory 
+    /// {
+    ///     // these fields are emitted only if the services
+    ///     // in their ctors require these values
+    ///     private readonly ISomeService someService;
+    ///     public DynamicFactoryForIMyFactory(ISomeService someService) 
+    ///     {
+    ///         this.someService = someService;
+    ///     }
+    ///     
+    ///     public IFoo Factory() 
+    ///     {
+    ///         return new Foo();
+    ///     }
+    ///     
+    ///     // parameters should be automatically assigned to the matching ctor
+    ///     public IFoo Factory(string param1) 
+    ///     {
+    ///         return new Foo(param1);
+    ///     }
+    ///     
+    ///     // parameters should be automatically assigned to the matching ctor
+    ///     // also with the resolved service
+    ///     public IBar Factory(int param1) 
+    ///     {
+    ///         return new Bar(param1, this.someService);
+    ///     }
+    /// }
+    /// 
+    /// </remarks>
+    internal static class ILFactoryTypeCreator
     {
         public static Type CreateType<TFactory>(FactoryClassBuilder builder) where TFactory : class
         {
             _ = builder ?? throw new ArgumentNullException(nameof(builder));
 
+            // assembly stuff
             AppDomain appDomain = Thread.GetDomain();
             AssemblyName asmName = new AssemblyName { Name = "ToFactoryDynamicAssembly" };
             AssemblyBuilder asmBuilder = AssemblyBuilder.DefineDynamicAssembly(asmName, AssemblyBuilderAccess.Run);
+            
             ModuleBuilder moduleBuilder = asmBuilder.DefineDynamicModule("ToFactoryModule");
             Type objType = Type.GetType("System.Object");
             ConstructorInfo objCtor = objType.GetConstructor(new Type[0]);
 
-            TypeBuilder facBuilder = moduleBuilder.DefineType($"DynamicFactoryFor{typeof(TFactory).Name}");
+            // type construction
+            TypeBuilder facBuilder = moduleBuilder.DefineType($"DynamicFactoryFor{typeof(TFactory).Name}",
+                TypeAttributes.Public
+                | TypeAttributes.AutoClass
+                | TypeAttributes.AnsiClass
+                | TypeAttributes.BeforeFieldInit);
 
+            facBuilder.AddInterfaceImplementation(typeof(TFactory));
+
+            // ctor construction
             var ctorParams = builder.PrivateReadonlyFields.Select(t => t.Type).ToArray();
-            ConstructorBuilder facCtorBuilder = facBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, ctorParams);
+            ConstructorBuilder facCtorBuilder = facBuilder.DefineConstructor(MethodAttributes.Public
+                | MethodAttributes.HideBySig
+                | MethodAttributes.SpecialName
+                | MethodAttributes.RTSpecialName, CallingConventions.Standard, ctorParams);
+
             var ctorIL = facCtorBuilder.GetILGenerator();
             ctorIL.Emit(OpCodes.Ldarg_0);
             ctorIL.Emit(OpCodes.Call, objCtor);
             ctorIL.Emit(OpCodes.Nop);
-            ctorIL.Emit(OpCodes.Nop);
 
+            // generate IL code for assigning the fields with types (parsed from the resolved type constructors) 
+            // resolved by the IoC container
             Dictionary<string, FieldBuilder> fieldBuilders = new Dictionary<string, FieldBuilder>();
             for (int i = 0; i < builder.PrivateReadonlyFields.Count; i++)
             {
@@ -58,13 +110,26 @@ namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
 
             ctorIL.Emit(OpCodes.Ret);
 
+
+            // build the factory methods
             foreach (var facMethod in builder.FactoryMethods)
             {
-                var types = facMethod.Parameters.Where(p => !p.IsFromField).Select(p => p.Type).ToArray();
-                var methodBuilder = facBuilder.DefineMethod("Factory", MethodAttributes.Public,
+                var types = facMethod.Parameters
+                                     .Where(p => !p.IsFromField)
+                                     .Select(p => p.Type)
+                                     .ToArray();
+
+                var methodBuilder = facBuilder.DefineMethod("Factory",
+                    MethodAttributes.Public
+                    | MethodAttributes.HideBySig
+                    | MethodAttributes.NewSlot
+                    | MethodAttributes.Virtual
+                    | MethodAttributes.Final,
                     facMethod.FactoryInterfaceMethodInfo.ReturnType,
                     types);
 
+                // assign the method parameters
+                // into the constructed type ctor
                 var methodIL = methodBuilder.GetILGenerator();
                 methodIL.Emit(OpCodes.Nop);
                 for (int i = 0; i < facMethod.Parameters.Count; i++)
@@ -78,6 +143,7 @@ namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
                     else
                         methodIL.Emit(OpCodes.Ldarg_S, facMethod.Parameters[i].MatchingField);
 
+                    // different op codes if the parameter is derived from field
                     if (facMethod.Parameters[i].IsFromField)
                     {
                         methodIL.Emit(OpCodes.Ldarg_0);
@@ -85,8 +151,7 @@ namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
                     }
                 }
 
-                methodIL.Emit(OpCodes.Stloc_0);
-                methodIL.Emit(OpCodes.Ldloc_0);
+                methodIL.Emit(OpCodes.Newobj, facMethod.MatchingCtor);
                 methodIL.Emit(OpCodes.Ret);
             }
 

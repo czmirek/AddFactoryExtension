@@ -1,51 +1,81 @@
-﻿using System;
+﻿using AddFactoryExtension;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
 namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
 {
+    /// <summary>
+    /// Factory type interface structure for type validation and preparation for the IL type build
+    /// </summary>
     internal class FactoryClassBuilder
     {
         private FactoryClassBuilder() { }
+
+        /// <summary>
+        /// Private readonly fields that should be generated inside the factory type
+        /// </summary>
         public List<FactoryClassReadOnlyField> PrivateReadonlyFields { get; } = new List<FactoryClassReadOnlyField>();
+
+        /// <summary>
+        /// Factory methods that should be generated inside the factory type
+        /// </summary>
         public List<FactoryClassMethod> FactoryMethods { get; } = new List<FactoryClassMethod>();
 
+        /// <summary>
+        /// Constructs the <see cref="FactoryClassBuilder"/> structure for later
+        /// processing of the <see cref="ILFactoryTypeCreator"/>.
+        /// </summary>
+        /// <typeparam name="TFactory">Type of the factory interface</typeparam>
+        /// <param name="assemblies">Assemblies to scan for implemented return types</param>
+        /// <returns>New instance of <see cref="FactoryClassBuilder"/></returns>
         public static FactoryClassBuilder CreateFactoryClassBuilder<TFactory>(Assembly[] assemblies)
         {
-            FactoryClassBuilder facClsBuilder = new FactoryClassBuilder();
-            var allTypes = assemblies.SelectMany(t => t.GetTypes());
-            var factoryMethods = typeof(TFactory).GetMethods().Where(m => m.Name == "Factory");
+            var facClsBuilder = new FactoryClassBuilder();
+            IEnumerable<Type> allTypes = assemblies.SelectMany(t => t.GetTypes());
+            IEnumerable<MethodInfo> factoryMethods = typeof(TFactory).GetMethods().Where(m => m.Name == "Factory");
 
             foreach (var factoryMethod in factoryMethods)
             {
-                var factoryParams = factoryMethod.GetParameters();
+                ParameterInfo[] factoryParams = factoryMethod.GetParameters();
                 string debugName = $"{factoryMethod.DeclaringType.Name}.{factoryMethod.Name}({string.Join(",", factoryParams.Select(p => p.ParameterType.Name))})";
 
-                var interfaceReturnType = factoryMethod.ReturnType;
+                Type interfaceReturnType = factoryMethod.ReturnType;
                 if (!interfaceReturnType.IsInterface)
-                    throw new InvalidOperationException($"Factory method '{debugName}' return type must be an interface");
+                    throw new FactoryMethodNotInterfaceException($"Factory method '{debugName}' return type must be an interface");
 
-                var foundCtors = allTypes
-                    .Where(t => interfaceReturnType.IsAssignableFrom(t))
-                    .SelectMany(t => t.GetConstructors());
+                List<Type> implementedTypes = allTypes.Where(t => interfaceReturnType.IsAssignableFrom(t) && !t.IsInterface).ToList();
 
-                if (!foundCtors.Any())
-                    throw new InvalidOperationException($"No constructors were found for factory method '{debugName}'");
+                if (implementedTypes.Count == 0)
+                    throw new NoImplementingClassFoundException($"No class implementing interface {interfaceReturnType.Name} found");
 
-                var connectibleCtors = foundCtors.Where(fctor =>
+                List<ConstructorInfo> foundCtors = implementedTypes
+                    .SelectMany(t => t.GetConstructors())
+                    .ToList();
+
+                List<ConstructorInfo> connectibleCtors = foundCtors.FindAll(fctor =>
                 {
-                    var fctorParams = fctor.GetParameters();
+                    ParameterInfo[] fctorParams = fctor.GetParameters();
 
-                    //no match if there are more factory method params than ctor params
+                    // no match if there are more factory method params than ctor params
                     if (fctorParams.Length < factoryParams.Length)
                         return false;
 
-
+                    // no match if there is type mismatch at same parameter position
                     for (int i = 0; i < factoryParams.Length; i++)
                     {
-                        //no match if there is type mismatch at same parameter position
                         if (fctorParams[i].ParameterType != factoryParams[i].ParameterType)
+                            return false;
+                    }
+
+                    // for parameter positions AFTER all factory parameters,
+                    // simple value type (ints, strings, enums, etc.) are not allowed 
+                    // as it would result into an attempt to inject this type
+                    // which is definitely not the right thing to do
+                    for (int i = factoryParams.Length; i < fctorParams.Length; i++)
+                    {
+                        if (fctorParams[i].ParameterType.IsSimple())
                             return false;
                     }
 
@@ -53,15 +83,14 @@ namespace Microsoft.Extensions.DependencyInjection.AddFactoryExtension
                     return true;
                 });
 
-                if (!connectibleCtors.Any())
-                    throw new InvalidOperationException($"No valid constructors were found for factory method '{debugName}'. At least one constructor must match the factory parameters.");
+                if (connectibleCtors.Count == 0)
+                    throw new NoValidCtorFoundException($"No valid constructors were found for factory method '{debugName}'. At least one constructor must match the factory parameters.");
 
-                if (connectibleCtors.Count() > 1)
-                    throw new InvalidOperationException($"There is more than one constructor for factory method '{debugName}'. Only one constructor is permitted.");
+                if (connectibleCtors.Count > 1)
+                    throw new ConflictingCtorsFoundException($"There is more than one constructor for factory method '{debugName}'. Only one constructor is permitted.");
 
-
-                var ctor = connectibleCtors.Single();
-                var ctorParams = ctor.GetParameters();
+                ConstructorInfo ctor = connectibleCtors.Single();
+                ParameterInfo[] ctorParams = ctor.GetParameters();
 
                 var facCtorParameters = new List<FactoryClassMethodOrFieldParameter>();
 

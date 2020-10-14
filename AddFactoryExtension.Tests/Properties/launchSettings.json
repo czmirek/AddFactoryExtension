@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "AddFactoryExtension.Tests": {
+      "commandName": "Project"
+    }
+  }
+}
