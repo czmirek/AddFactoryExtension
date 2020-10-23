@@ -99,13 +99,13 @@ namespace AddFactoryExtension
                     bool fromField = i > factoryParams.Length - 1;
                     bool isFactoryReinjection = ctorParams[i].ParameterType == typeof(TFactory);
 
-                    string fieldName = $"field_{i}_{ctorParams[i].ParameterType.Name}";
+                    string fieldName = $"field_{ctorParams[i].ParameterType.Name}";
                     string methodParamName = $"param_{i}_{ctorParams[i].ParameterType.Name}";
 
                     if (isFactoryReinjection)
                         fromField = false;
 
-                    if (fromField)
+                    if (fromField && !facClsBuilder.PrivateReadonlyFields.Any(f => f.Name == fieldName))
                     {
                         facClsBuilder.PrivateReadonlyFields.Add(new FactoryClassReadOnlyField()
                         {
