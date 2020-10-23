@@ -97,8 +97,13 @@ namespace AddFactoryExtension
                 for (int i = 0; i < ctorParams.Length; i++)
                 {
                     bool fromField = i > factoryParams.Length - 1;
+                    bool isFactoryReinjection = ctorParams[i].ParameterType == typeof(TFactory);
+
                     string fieldName = $"field_{i}_{ctorParams[i].ParameterType.Name}";
                     string methodParamName = $"param_{i}_{ctorParams[i].ParameterType.Name}";
+
+                    if (isFactoryReinjection)
+                        fromField = false;
 
                     if (fromField)
                     {
@@ -112,6 +117,7 @@ namespace AddFactoryExtension
                     facCtorParameters.Add(new FactoryClassMethodOrFieldParameter()
                     {
                         IsFromField = fromField,
+                        IsFactoryReinjection = isFactoryReinjection,
                         MatchingField = fieldName,
                         MethodParameterName = methodParamName,
                         Type = ctorParams[i].ParameterType

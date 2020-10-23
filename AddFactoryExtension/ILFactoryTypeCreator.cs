@@ -113,7 +113,7 @@
             foreach (var facMethod in builder.FactoryMethods)
             {
                 var types = facMethod.Parameters
-                                     .Where(p => !p.IsFromField)
+                                     .Where(p => !p.IsFromField && !p.IsFactoryReinjection)
                                      .Select(p => p.Type)
                                      .ToArray();
 
@@ -129,6 +129,7 @@
                 // assign the method parameters
                 // into the constructed type ctor
                 var methodIL = methodBuilder.GetILGenerator();
+                methodIL.Emit(OpCodes.Nop);
                 //methodIL.Emit(OpCodes.Nop);
                 for (int i = 0; i < facMethod.Parameters.Count; i++)
                 {
@@ -140,14 +141,21 @@
                         continue;
                     }
 
-                    if (i == 0)
-                        methodIL.Emit(OpCodes.Ldarg_1);
-                    else if (i == 1)
-                        methodIL.Emit(OpCodes.Ldarg_2);
-                    else if (i == 2)
-                        methodIL.Emit(OpCodes.Ldarg_3);
+                    if (facMethod.Parameters[i].IsFactoryReinjection)
+                    {
+                        methodIL.Emit(OpCodes.Ldarg_0);
+                    }
                     else
-                        methodIL.Emit(OpCodes.Ldarg_S, facMethod.Parameters[i].MatchingField);
+                    {
+                        if (i == 0)
+                            methodIL.Emit(OpCodes.Ldarg_1);
+                        else if (i == 1)
+                            methodIL.Emit(OpCodes.Ldarg_2);
+                        else if (i == 2)
+                            methodIL.Emit(OpCodes.Ldarg_3);
+                        else
+                            methodIL.Emit(OpCodes.Ldarg_S, facMethod.Parameters[i].MatchingField);
+                    }
                 }
 
                 methodIL.Emit(OpCodes.Newobj, facMethod.MatchingCtor);
